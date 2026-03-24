@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VoiceBridge</string>
+    <string name="accessibility_service_description">
+        VoiceBridge uses Accessibility to automatically paste translated messages
+        into the active WhatsApp chat and tap Send — so you never have to
+        copy-paste manually. No personal data is stored or transmitted.
+    </string>
+</resources>

@@ -9,6 +9,8 @@ import 'providers/app_state.dart';
 import 'screens/translator_screen.dart';
 import 'screens/model_setup_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/overlay_screen.dart';
+import 'services/overlay_channel.dart';
 import 'utils/app_theme.dart';
 
 void main() async {
@@ -61,12 +63,81 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> {
   int _currentIndex = 0;
+  final OverlayChannel _overlay = OverlayChannel();
+  bool _overlayRunning = false;
 
   static const _tabs = [
     _Tab(label: 'Translate',  icon: Icons.translate,        screen: TranslatorScreen()),
     _Tab(label: 'AI Models',  icon: Icons.model_training,   screen: ModelSetupScreen()),
     _Tab(label: 'Settings',   icon: Icons.settings,         screen: SettingsScreen()),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForBubbleTap();
+  }
+
+  /// Listen for "show_drawer" event from the native bubble tap.
+  void _listenForBubbleTap() {
+    _overlay.events.listen((event) {
+      if (event == 'show_drawer' && mounted) {
+        OverlayScreen.show(context);
+      }
+    });
+  }
+
+  // ── Bubble toggle ─────────────────────────────────────────────────────
+
+  Future<void> _toggleBubble() async {
+    if (_overlayRunning) {
+      await _overlay.stopOverlayService();
+      setState(() => _overlayRunning = false);
+      return;
+    }
+
+    final hasPerm = await _overlay.checkOverlayPermission();
+    if (!hasPerm) {
+      _showPermissionDialog();
+      return;
+    }
+
+    final started = await _overlay.startOverlayService();
+    if (started && mounted) {
+      setState(() => _overlayRunning = true);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('🌐 Bubble is active — switch to WhatsApp!'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Overlay Permission Required'),
+        content: const Text(
+          'VoiceBridge needs "Display over other apps" permission '
+          'to show the floating bubble over WhatsApp.\n\n'
+          'Tap OK to open Settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _overlay.requestOverlayPermission();
+            },
+            child: const Text('OK — Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +176,16 @@ class _AppShellState extends State<_AppShell> {
           icon:  Icon(t.icon),
           label: t.label,
         )).toList(),
+      ),
+      // ── Floating bubble toggle FAB ───────────────────────────────────
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _toggleBubble,
+        backgroundColor: _overlayRunning ? AppTheme.danger : AppTheme.accent,
+        icon: Icon(_overlayRunning ? Icons.stop : Icons.bubble_chart),
+        label: Text(
+          _overlayRunning ? 'Stop Bubble' : 'Start Bubble',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
