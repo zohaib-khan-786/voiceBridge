@@ -29,30 +29,53 @@ class MarianTokenizer {
     final json = jsonDecode(raw) as Map<String, dynamic>;
 
     final model = json['model'] as Map<String, dynamic>?;
-    if (model == null) throw Exception('tokenizer.json has no "model" key');
+    
+    // ── Handle two formats ────────────────────────────────────────────────────
+    // Format 1: Full HuggingFace tokenizer.json with "model" key
+    // Format 2: Simple vocab mapping {"token": id, ...} used by older Marian
+    
+    if (model != null) {
+      // Full tokenizer.json format
+      _modelType = model['type'] as String? ?? 'Unigram';
 
-    _modelType = model['type'] as String? ?? 'Unigram';
+      if (_modelType == 'Unigram') {
+        _loadUnigram(model);
+      } else {
+        _loadBpe(model);
+      }
 
-    if (_modelType == 'Unigram') {
-      _loadUnigram(model);
-    } else {
-      _loadBpe(model);
-    }
-
-    // Override special tokens from added_tokens
-    final added = json['added_tokens'] as List<dynamic>?;
-    if (added != null) {
-      for (final t in added) {
-        final content = t['content'] as String?;
-        final id      = t['id']      as int?;
-        if (content != null && id != null) {
-          _vocab[content]   = id;
-          _idToToken[id]    = content;
-          switch (content) {
-            case '<pad>': padId = id;
-            case '</s>':  eosId = id;
-            case '<unk>': unkId = id;
+      // Override special tokens from added_tokens
+      final added = json['added_tokens'] as List<dynamic>?;
+      if (added != null) {
+        for (final t in added) {
+          final content = t['content'] as String?;
+          final id      = t['id']      as int?;
+          if (content != null && id != null) {
+            _vocab[content]   = id;
+            _idToToken[id]    = content;
+            switch (content) {
+              case '<pad>': padId = id;
+              case '</s>':  eosId = id;
+              case '<unk>': unkId = id;
+            }
           }
+        }
+      }
+    } else {
+      // Simple vocab format: {"token": id, ...}
+      _modelType = 'BPE'; // Default to BPE for simple vocab
+      
+      for (final entry in json.entries) {
+        final token = entry.key;
+        final id = entry.value as int;
+        _vocab[token] = id;
+        _idToToken[id] = token;
+        
+        // Detect special tokens
+        switch (token) {
+          case '<pad>': padId = id;
+          case '</s>':  eosId = id;
+          case '<unk>': unkId = id;
         }
       }
     }

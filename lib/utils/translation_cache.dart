@@ -87,7 +87,7 @@ class TranslationCache {
   // ── Lookup ────────────────────────────────────────────────────────────────
 
   String? lookup(String source, String sourceLang, String targetLang) {
-    final key = _key(source.trim().toLowerCase(), sourceLang, targetLang);
+    final key = _key(source.trim(), sourceLang, targetLang);
     final entry = _cache[key];
     if (entry != null) {
       entry.useCount++;
@@ -105,7 +105,7 @@ class TranslationCache {
     required String targetLang,
     CacheEntryType type = CacheEntryType.modelBasic,
   }) async {
-    final key = _key(source.trim().toLowerCase(), sourceLang, targetLang);
+    final key = _key(source.trim(), sourceLang, targetLang);
     final existing = _cache[key];
 
     // Only upgrade, never downgrade quality
@@ -196,7 +196,7 @@ class TranslationCache {
       final list = jsonDecode(await file.readAsString()) as List<dynamic>;
       for (final item in list) {
         final e   = CacheEntry.fromJson(item as Map<String, dynamic>);
-        final key = _key(e.source.toLowerCase(), e.sourceLang, e.targetLang);
+        final key = _key(e.source, e.sourceLang, e.targetLang);
         _cache[key] = e;
       }
     } catch (_) {}

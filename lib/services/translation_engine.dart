@@ -6,9 +6,7 @@
 //   Step 2: WordDictionary    — substitute known words (production mode)
 //   Step 3: TranslationCache  — return cached result if available
 //   Step 4: MarianTranslator  — on-device Urdu→English ONNX
-//   Step 5: If target ≠ English, chain second Marian pass
-//           (future: multilingual Marian models)
-//   Step 6: Store result in cache + word dictionary
+//   Step 5: Store result in cache + word dictionary
 //
 // No Google services. No network calls during translation.
 
@@ -20,15 +18,18 @@ import '../utils/word_dictionary.dart';
 import '../utils/translation_cache.dart';
 import '../utils/translation_context.dart';
 
+// Re-export so callers only need to import this one file.
+export '../utils/translation_cache.dart' show CacheStats, CacheEntryType;
+
 // ── Result type ───────────────────────────────────────────────────────────────
 
 class TranslationResult {
   final String original;
   final String translated;
-  final String normNote;        // e.g. "Normalised slang"
-  final String correctionNote;  // e.g. "Fuzzy fixed: meetng → meeting"
+  final String normNote;
+  final String correctionNote;
   final bool   fromCache;
-  final double confidence;      // 0..1
+  final double confidence;
   final String sourceLang;
   final String targetLang;
 
@@ -58,15 +59,17 @@ class TranslationEngine {
   final TranslationCache   _cache   = TranslationCache();
   final TranslationContext _context = TranslationContext();
 
-  bool _marianLoaded = false;
-  bool _initializing = false;
+  bool _marianLoaded  = false;
+  bool _initializing  = false;
+  bool _isInitialized = false;
 
   bool get isMarianLoaded => _marianLoaded;
+  bool get isInitialized  => _isInitialized;
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> init() async {
-    if (_initializing) return;
+    if (_initializing || _isInitialized) return;
     _initializing = true;
 
     await _cache.init();
@@ -78,13 +81,14 @@ class TranslationEngine {
       debugPrint('[TranslationEngine] Marian READY');
     } catch (e) {
       _marianLoaded = false;
-      debugPrint('[TranslationEngine] Marian load failed: $e — pipeline will use cache only');
+      debugPrint('[TranslationEngine] Marian load failed: $e — cache only mode');
     }
 
-    _initializing = false;
+    _initializing  = false;
+    _isInitialized = true;
   }
 
-  // ── Main translate ─────────────────────────────────────────────────────────
+  // ── Main translate ────────────────────────────────────────────────────────
 
   Future<TranslationResult> translate({
     required String text,
@@ -92,23 +96,26 @@ class TranslationEngine {
     required String targetLang,
   }) async {
     if (text.trim().isEmpty) {
-      return TranslationResult(original: text, translated: text, sourceLang: sourceLang, targetLang: targetLang);
+      return TranslationResult(
+        original: text, translated: text,
+        sourceLang: sourceLang, targetLang: targetLang,
+      );
     }
 
-    String working = text.trim();
+    String working        = text.trim();
     String correctionNote = '';
     String normNote       = '';
 
-    // ── Step 0: Fuzzy spelling correction (Roman Urdu only) ──────────────────
+    // Step 0: Fuzzy spelling correction (Roman Urdu only)
     if (sourceLang == 'ur') {
       final fuzzy = FuzzyMatcher.correct(working);
       if (fuzzy.wasModified) {
-        working       = fuzzy.corrected;
+        working        = fuzzy.corrected;
         correctionNote = '🔤 ${fuzzy.changesApplied.take(2).join(', ')}';
       }
     }
 
-    // ── Step 1: Slang / Urdish normalisation ─────────────────────────────────
+    // Step 1: Slang / Urdish normalisation
     if (sourceLang == 'ur') {
       final normalized = UrduSlangNormalizer.normalize(working, sourceLang);
       if (normalized.wasModified) {
@@ -117,15 +124,16 @@ class TranslationEngine {
       }
     }
 
-    // ── Step 2: Word dictionary substitution (production mode) ───────────────
-    final dictResult = _dict.substituteKnownWords(working, sourceLang, targetLang);
-    if (dictResult.wasModified) working = dictResult.text;
-
-    // ── Step 3: Cache lookup ──────────────────────────────────────────────────
+    // Step 2: Cache lookup — must happen BEFORE word dict substitution.
+    // userCorrect() keys the cache on the original (pre-dict) text, and also
+    // writes that same text into the word dictionary. If word dict ran first it
+    // would rewrite `working` to the target value, and the subsequent cache
+    // lookup would miss. Checking the cache first avoids that race.
     final cached = _cache.lookup(working, sourceLang, targetLang);
     if (cached != null) {
       _context.recordTranslation(
-        source: text, target: cached, sourceLang: sourceLang, targetLang: targetLang,
+        source: text, target: cached,
+        sourceLang: sourceLang, targetLang: targetLang,
       );
       return TranslationResult(
         original: text, translated: cached,
@@ -134,37 +142,34 @@ class TranslationEngine {
       );
     }
 
-    // ── Step 4: Marian on-device inference ───────────────────────────────────
-    String? translated;
+    // Step 3: Word dictionary substitution (improves model input quality)
+    final dictResult = _dict.substituteKnownWords(working, sourceLang, targetLang);
+    if (dictResult.wasModified) working = dictResult.text;
 
+    // Step 4: Marian ONNX inference
+    String? translated;
     if (_marianLoaded && sourceLang == 'ur') {
-      // Marian handles ur → en
       translated = await _marian.translateToEnglish(working);
     }
 
-    // ── Step 5: Fallback chain ────────────────────────────────────────────────
-    // If Marian didn't produce a result, or source is not Urdu,
-    // we return the input as-is with a note.
-    // In a full deployment, you'd add more Marian models or
-    // a secondary offline engine here (e.g., CTranslate2).
-    translated ??= _noTranslationFallback(working, sourceLang, targetLang);
-
+    // Step 5: Fallback — return working text; UI shows "model not loaded" badge
+    translated ??= (sourceLang == targetLang) ? text : working;
     final finalTranslation = translated;
 
-    // ── Step 6: Cache the result ──────────────────────────────────────────────
+    // Step 6: Cache it
     await _cache.store(
       source: working, target: finalTranslation,
       sourceLang: sourceLang, targetLang: targetLang,
       type: CacheEntryType.modelBasic,
     );
 
-    // ── Step 7: Record in context ─────────────────────────────────────────────
+    // Step 7: Session context
     _context.recordTranslation(
       source: text, target: finalTranslation,
       sourceLang: sourceLang, targetLang: targetLang,
     );
 
-    // ── Step 8: Learn word pairs ──────────────────────────────────────────────
+    // Step 8: Learn word pairs
     await _dict.learnFromTranslation(
       sourceText: working, targetText: finalTranslation,
       sourceLang: sourceLang, targetLang: targetLang,
@@ -180,7 +185,7 @@ class TranslationEngine {
     );
   }
 
-  // ── User corrects a translation ───────────────────────────────────────────
+  // ── User corrects a translation ──────────────────────────────────────────
 
   Future<void> userCorrect({
     required String source,
@@ -199,34 +204,20 @@ class TranslationEngine {
     );
   }
 
-  // ── Clear session context ─────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  void clearSession() => _context.clearSession();
-
-  // ── Stats ─────────────────────────────────────────────────────────────────
-
-  CacheStats get cacheStats => _cache.getStats();
-  int get dictionarySize    => _dict.size;
+  void clearSession()              => _context.clearSession();
+  CacheStats get cacheStats        => _cache.getStats();
+  int        get dictionarySize    => _dict.size;
 
   Future<String> exportTrainingData() async {
     final file = await _cache.exportTrainingData();
     return file.path;
   }
 
-  // ── Cleanup ───────────────────────────────────────────────────────────────
-
   void close() {
     _marian.close();
-    _marianLoaded = false;
-  }
-
-  // ── Fallback when no model is available ───────────────────────────────────
-
-  String _noTranslationFallback(String text, String src, String tgt) {
-    // For non-Urdu languages without a Marian model loaded,
-    // return the original text so the UI can show it honestly.
-    // A real deployment would add more language-pair ONNX models here.
-    if (src == tgt) return text;
-    return text; // caller shows "Model not loaded" status badge
+    _marianLoaded  = false;
+    _isInitialized = false;
   }
 }

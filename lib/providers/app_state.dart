@@ -10,7 +10,7 @@ import '../services/whisper_stt.dart';
 import '../services/tts_service.dart';
 import '../services/model_manager.dart';
 import '../utils/language_constants.dart';
-import '../utils/translation_cache.dart';
+// CacheStats comes from translation_engine.dart re-export (via translation_cache)
 
 // ── App mode (training vs production) ────────────────────────────────────────
 
@@ -90,7 +90,7 @@ class AppState extends ChangeNotifier {
       _modelStatus = status;
       notifyListeners();
     });
-    _modelStatus = _models.currentStatus;
+    _modelStatus = await _models.refresh();  // rescan disk, not stale cache
 
     // Init engine (loads Marian if available)
     await _engine.init();
@@ -126,6 +126,64 @@ class AppState extends ChangeNotifier {
     _targetLang = tmp;
     _savePrefs();
     notifyListeners();
+  }
+
+  // ── Model status check methods ────────────────────────────────────────────────
+
+  /// Check Marian models status — rescans disk.
+  Future<void> checkMarianModels() async {
+    _modelStatus = await _models.refresh();
+    notifyListeners();
+    if (_models.isMarianReady && !_engine.isInitialized) await _engine.init();
+    notifyListeners();
+  }
+
+  /// Check Whisper models status — rescans disk.
+  Future<void> checkWhisperModels() async {
+    _modelStatus = await _models.refresh();
+    notifyListeners();
+    if (_models.isWhisperReady && !_whisper.isLoaded) {
+      try { await _whisper.load(); } catch (e) { debugPrint('Whisper load: $e'); }
+    }
+    notifyListeners();
+  }
+
+  /// Check STT models status — rescans disk.
+  Future<void> checkSttModels() async {
+    _modelStatus = await _models.refresh();
+    notifyListeners();
+  }
+
+  /// Refresh all model statuses — always rescans disk, never reads stale cache.
+  Future<void> refreshModelStatus() async {
+    _modelStatus = await _models.refresh();
+    notifyListeners();
+    if (_models.isMarianReady && !_engine.isInitialized) await _engine.init();
+    if (_models.isWhisperReady && !_whisper.isLoaded) {
+      try { await _whisper.load(); } catch (e) { debugPrint('Whisper load: $e'); }
+    }
+    notifyListeners();
+  }
+
+  /// Get detailed model status as a map
+  Map<String, bool> getModelStatus() {
+    return {
+      'marian': _models.isMarianReady,
+      'whisper': _models.isWhisperReady,
+      'stt': _models.isSttReady,
+    };
+  }
+
+  /// Check if all critical models are ready
+  bool get areCriticalModelsReady => _models.isMarianReady && _models.isWhisperReady;
+
+  /// Get model sizes
+  String getModelSizes() {
+    final size = _models.installedSizeMb;
+    if (size < 1024) {
+      return '${size.toStringAsFixed(1)} MB';
+    }
+    return '${(size / 1024).toStringAsFixed(1)} GB';
   }
 
   // ── App mode ──────────────────────────────────────────────────────────────

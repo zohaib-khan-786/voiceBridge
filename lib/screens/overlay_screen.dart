@@ -17,11 +17,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
-import 'package:voicebridge/screens/overlay_channel.dart';
+import '../services/overlay_channel.dart';
 
 import '../providers/app_state.dart';
 import '../services/audio_recorder.dart';
-import '../services/overlay_channel.dart';
 import '../utils/app_theme.dart';
 import '../utils/language_constants.dart';
 

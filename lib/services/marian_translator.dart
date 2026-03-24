@@ -17,8 +17,8 @@ import 'marian_tokenizer.dart';
 import 'model_manager.dart';
 
 class MarianTranslator {
-  static const int _maxDecSteps   = 128;
-  static const int _maxInputToks  = 512;
+  static const int _maxDecSteps = 128;
+  static const int _maxInputToks = 512;
 
   OrtSession? _encoderSession;
   OrtSession? _decoderSession;
@@ -31,7 +31,7 @@ class MarianTranslator {
 
   Future<void> load() async {
     try {
-      final mm  = ModelManager();
+      final mm = ModelManager();
       final tok = MarianTokenizer();
       await tok.load(mm.marianTokenizerPath);
 
@@ -39,10 +39,10 @@ class MarianTranslator {
         ..setIntraOpNumThreads(2)
         ..setInterOpNumThreads(2);
 
-      _encoderSession = OrtSession.fromFile(mm.marianEncoderPath as File, opts);
-      _decoderSession = OrtSession.fromFile(mm.marianDecoderPath as File, opts);
-      _tokenizer      = tok;
-      _loaded         = true;
+      _encoderSession = OrtSession.fromFile(File(mm.marianEncoderPath), opts);
+      _decoderSession = OrtSession.fromFile(File(mm.marianDecoderPath), opts);
+      _tokenizer = tok;
+      _loaded = true;
     } catch (e) {
       _loaded = false;
       rethrow;
@@ -55,25 +55,28 @@ class MarianTranslator {
   /// Returns null if model is not loaded or inference fails.
   Future<String?> translateToEnglish(String sourceText) async {
     if (!_loaded || sourceText.trim().isEmpty) return null;
-    final enc    = _encoderSession!;
-    final dec    = _decoderSession!;
-    final tok    = _tokenizer!;
+    final enc = _encoderSession!;
+    final dec = _decoderSession!;
+    final tok = _tokenizer!;
 
     try {
       // ── Step 1: Tokenize ─────────────────────────────────────────────────
-      final inputIds  = tok.encode(sourceText.trim(), _maxInputToks);
+      final inputIds = tok.encode(sourceText.trim(), _maxInputToks);
       if (inputIds.isEmpty) return null;
 
-      final seqLen    = inputIds.length;
-      final idData    = Int64List.fromList(inputIds.map((v) => v.toInt()).toList());
-      final maskData  = Int64List(seqLen)..fillRange(0, seqLen, 1);
+      final seqLen = inputIds.length;
+      final idData =
+          Int64List.fromList(inputIds.map((v) => v.toInt()).toList());
+      final maskData = Int64List(seqLen)..fillRange(0, seqLen, 1);
 
       // ── Step 2: Encode ───────────────────────────────────────────────────
-      final encIds  = OrtValueTensor.createTensorWithDataList(idData,   [1, seqLen]);
-      final encMask = OrtValueTensor.createTensorWithDataList(maskData, [1, seqLen]);
+      final encIds =
+          OrtValueTensor.createTensorWithDataList(idData, [1, seqLen]);
+      final encMask =
+          OrtValueTensor.createTensorWithDataList(maskData, [1, seqLen]);
 
       final encOut = enc.run(OrtRunOptions(), {
-        'input_ids':      encIds,
+        'input_ids': encIds,
         'attention_mask': encMask,
       });
 
@@ -88,16 +91,19 @@ class MarianTranslator {
       final generated = <int>[tok.padId];
 
       for (int step = 0; step < _maxDecSteps; step++) {
-        final decLen  = generated.length;
-        final decIds  = Int64List.fromList(generated.map((v) => v.toInt()).toList());
+        final decLen = generated.length;
+        final decIds =
+            Int64List.fromList(generated.map((v) => v.toInt()).toList());
         final decMask = Int64List(seqLen)..fillRange(0, seqLen, 1);
 
-        final decIdTensor   = OrtValueTensor.createTensorWithDataList(decIds,  [1, decLen]);
-        final decMaskTensor = OrtValueTensor.createTensorWithDataList(decMask, [1, seqLen]);
+        final decIdTensor =
+            OrtValueTensor.createTensorWithDataList(decIds, [1, decLen]);
+        final decMaskTensor =
+            OrtValueTensor.createTensorWithDataList(decMask, [1, seqLen]);
 
         final decOut = dec.run(OrtRunOptions(), {
-          'input_ids':              decIdTensor,
-          'encoder_hidden_states':  hiddenTensor,
+          'input_ids': decIdTensor,
+          'encoder_hidden_states': hiddenTensor,
           'encoder_attention_mask': decMaskTensor,
         });
 
@@ -114,7 +120,10 @@ class MarianTranslator {
         double maxVal = double.negativeInfinity;
         for (int i = 0; i < lastLogits.length; i++) {
           final v = (lastLogits[i] as num).toDouble();
-          if (v > maxVal) { maxVal = v; nextToken = i; }
+          if (v > maxVal) {
+            maxVal = v;
+            nextToken = i;
+          }
         }
 
         logitsTensor.release();
@@ -127,9 +136,8 @@ class MarianTranslator {
 
       // ── Step 4: Decode ───────────────────────────────────────────────────
       final outputIds = generated.skip(1).toList(); // drop leading padId
-      final result    = tok.decode(outputIds);
+      final result = tok.decode(outputIds);
       return result.isEmpty ? null : result;
-
     } catch (e) {
       return null;
     }
@@ -142,7 +150,7 @@ class MarianTranslator {
     _decoderSession?.release();
     _encoderSession = null;
     _decoderSession = null;
-    _tokenizer      = null;
-    _loaded         = false;
+    _tokenizer = null;
+    _loaded = false;
   }
 }
