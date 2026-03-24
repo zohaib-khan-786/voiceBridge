@@ -11,7 +11,10 @@ import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
 class TranslatorScreen extends StatefulWidget {
-  const TranslatorScreen({super.key});
+  /// Callback to navigate to a specific tab index in the parent shell.
+  final ValueChanged<int>? onNavigateToTab;
+
+  const TranslatorScreen({super.key, this.onNavigateToTab});
   @override
   State<TranslatorScreen> createState() => _TranslatorScreenState();
 }
@@ -240,7 +243,7 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
               label: 'Marian translation model not found — tap to set up',
               color: AppTheme.warning,
               icon: Icons.warning_amber,
-              onTap: () => DefaultTabController.of(context).animateTo(2),
+              onTap: () => widget.onNavigateToTab?.call(1),
             ),
           ),
 
@@ -251,7 +254,7 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
               label: 'Whisper STT not downloaded — tap to download',
               color: AppTheme.info,
               icon: Icons.download,
-              onTap: () => DefaultTabController.of(context).animateTo(2),
+              onTap: () => widget.onNavigateToTab?.call(1),
             ),
           ),
 

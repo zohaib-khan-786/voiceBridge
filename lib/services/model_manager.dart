@@ -39,8 +39,11 @@ const _whisperRepo = '$_hfBase/onnx-community/whisper-small/resolve/main/onnx';
 const _whisperVocabUrl =
     '$_hfBase/openai/whisper-small/resolve/main/vocab.json';
 
-const _whisperEncoderUrl = '$_whisperRepo/encoder_model_quantized.onnx';
-const _whisperDecoderUrl = '$_whisperRepo/decoder_model_quantized.onnx';
+// Use non-quantized models — the quantized variants require MatMulNBits op
+// which is only available in ONNX Runtime >= 1.17. The Flutter onnxruntime
+// package (^1.4.1) bundles an older runtime that does not support it.
+const _whisperEncoderUrl = '$_whisperRepo/encoder_model.onnx';
+const _whisperDecoderUrl = '$_whisperRepo/decoder_model.onnx';
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
@@ -229,12 +232,12 @@ class ModelManager {
         (
           url: _whisperEncoderUrl,
           path: whisperEncoderPath,
-          label: 'Whisper encoder (~30 MB)'
+          label: 'Whisper encoder (~242 MB)'
         ),
         (
           url: _whisperDecoderUrl,
           path: whisperDecoderPath,
-          label: 'Whisper decoder (~120 MB)'
+          label: 'Whisper decoder (~213 MB)'
         ),
         (
           url: _whisperVocabUrl,
