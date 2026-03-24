@@ -28,9 +28,7 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
     final theme = Theme.of(context);
     final status = state.modelStatus;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('AI Models')),
-      body: ListView(
+    return ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // ── Installed size ──────────────────────────────────────────────
@@ -95,7 +93,6 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
             ),
           ],
         ],
-      ),
     );
   }
 

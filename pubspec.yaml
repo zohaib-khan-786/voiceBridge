@@ -51,13 +51,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - 'assets/models/marian-encoder.onnx'
-    - 'assets/models/marian-decoder.onnx'
+    # Only list files that are actually bundled in the repo.
+    # ONNX model files are too large for git — they are either
+    # auto-downloaded (Whisper) or manually placed (Marian) at runtime.
     - 'assets/models/marian-tokenizer.json'
-    - 'assets/models/whisper/whisper-encoder.onnx'
-    - 'assets/models/whisper/whisper-decoder.onnx'
     - 'assets/models/whisper/whisper-vocab.json'
     - 'assets/models/stt/stt-config.json'
-    - 'assets/models/stt/stt-encoder.onnx'
-    - 'assets/models/stt/stt-decoder.onnx'
     - 'assets/models/stt/stt-vocab.json'
