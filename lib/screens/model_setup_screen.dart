@@ -43,7 +43,7 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
           // ── Whisper STT ─────────────────────────────────────────────────
           _ModelCard(
             title: 'Whisper Small (STT)',
-            description: 'On-device speech-to-text.\n~466 MB  ·  Supports 16+ languages  ·  Auto-download',
+            description: 'On-device speech-to-text.\n~456 MB  ·  Supports 16+ languages  ·  Auto-download',
             status: status.whisper,
             isDownloading: _downloading,
             downloadProgress: _downloadProgress,
@@ -130,7 +130,7 @@ class _ModelSetupScreenState extends State<ModelSetupScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Remove Whisper Model?'),
-        content: const Text('This will delete the downloaded Whisper files (~466 MB). You can re-download them later.'),
+        content: const Text('This will delete the downloaded Whisper files (~456 MB). You can re-download them later.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
@@ -267,7 +267,7 @@ class _ModelCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onDownload,
                 icon: const Icon(Icons.download, size: 18),
-                label: const Text('Download Whisper Small (~466 MB)'),
+                label: const Text('Download Whisper Small (~456 MB)'),
               ),
             ),
           ],

@@ -128,18 +128,22 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   bool _isInitializing = true;
   String _initMessage = 'Checking models...';
 
-  static const _tabs = [
-    _Tab(label: 'Translate', icon: Icons.translate, screen: TranslatorScreen()),
-    _Tab(
-        label: 'AI Models',
-        icon: Icons.model_training,
-        screen: ModelSetupScreen()),
-    _Tab(label: 'Settings', icon: Icons.settings, screen: SettingsScreen()),
-  ];
+  late final List<_Tab> _tabs;
+
+  void _goToTab(int index) {
+    if (index >= 0 && index < _tabs.length) {
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _tabs = [
+      _Tab(label: 'Translate', icon: Icons.translate, screen: TranslatorScreen(onNavigateToTab: _goToTab)),
+      _Tab(label: 'AI Models', icon: Icons.model_training, screen: ModelSetupScreen()),
+      _Tab(label: 'Settings', icon: Icons.settings, screen: SettingsScreen()),
+    ];
     WidgetsBinding.instance.addObserver(this);
     _listenForBubbleTap();
     _initializeModels();

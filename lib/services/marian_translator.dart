@@ -39,8 +39,8 @@ class MarianTranslator {
         ..setIntraOpNumThreads(2)
         ..setInterOpNumThreads(2);
 
-      _encoderSession = OrtSession.fromFile(File(mm.marianEncoderPath), opts);
-      _decoderSession = OrtSession.fromFile(File(mm.marianDecoderPath), opts);
+      _encoderSession = await OrtSession.fromFile(File(mm.marianEncoderPath), opts);
+      _decoderSession = await OrtSession.fromFile(File(mm.marianDecoderPath), opts);
       _tokenizer = tok;
       _loaded = true;
     } catch (e) {

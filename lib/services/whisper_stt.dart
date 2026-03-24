@@ -4,8 +4,8 @@
 // same greedy decoder, same byte-level BPE vocab decode.
 //
 // Model files (auto-downloaded to <documents>/ai_model/whisper/):
-//   whisper-encoder.onnx  (~30 MB)
-//   whisper-decoder.onnx  (~120 MB)
+//   whisper-encoder.onnx  (~242 MB, non-quantized)
+//   whisper-decoder.onnx  (~213 MB, non-quantized)
 //   whisper-vocab.json    (~800 KB)
 
 import 'dart:convert';
