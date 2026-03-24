@@ -116,22 +116,12 @@ class ModelManager {
   // ── Asset extraction ──────────────────────────────────────────────────────
 
   Future<void> _extractBundledAssets() async {
+    // Only extract files that are actually bundled in the Flutter assets.
+    // ONNX model files are NOT bundled (too large for git) — they are either
+    // auto-downloaded from HuggingFace (Whisper) or manually placed (Marian).
     final files = [
-      ('assets/models/marian-encoder.onnx', marianEncoderPath),
-      ('assets/models/marian-decoder.onnx', marianDecoderPath),
       ('assets/models/marian-tokenizer.json', marianTokenizerPath),
-      ('assets/models/whisper/whisper-encoder.onnx', whisperEncoderPath),
-      ('assets/models/whisper/whisper-decoder.onnx', whisperDecoderPath),
       ('assets/models/whisper/whisper-vocab.json', whisperVocabPath),
-      // STT correction — optional, silently skipped if not bundled
-      (
-        'assets/models/stt/stt-encoder.onnx',
-        '${_sttDir.path}/${ModelFiles.sttEncoder}'
-      ),
-      (
-        'assets/models/stt/stt-decoder.onnx',
-        '${_sttDir.path}/${ModelFiles.sttDecoder}'
-      ),
       (
         'assets/models/stt/stt-vocab.json',
         '${_sttDir.path}/${ModelFiles.sttVocab}'
