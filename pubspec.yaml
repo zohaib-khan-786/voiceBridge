@@ -1,0 +1,62 @@
+name: voicebridge
+description: Offline AI Translator — VoiceBridge Flutter (no Google services)
+publish_to: 'none'
+version: 2.0.0+1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ── ONNX Runtime (Whisper + Marian + STT-Correction inference) ──────────────
+  onnxruntime: ^1.4.1
+
+  # ── Audio recording (16 kHz mono PCM for Whisper) ───────────────────────────
+  record: ^6.2.0
+
+  # ── Audio playback (TTS voice notes) ────────────────────────────────────────
+  audioplayers: ^6.1.0
+
+  # ── File paths ───────────────────────────────────────────────────────────────
+  path_provider: ^2.1.5
+
+  # ── Permissions ──────────────────────────────────────────────────────────────
+  permission_handler: ^12.0.1
+
+  # ── HTTP downloads with progress (model files from HuggingFace) ─────────────
+  dio: ^5.7.0
+
+  # ── Android built-in TTS ─────────────────────────────────────────────────────
+  flutter_tts: ^4.2.0
+
+  # ── State management ─────────────────────────────────────────────────────────
+  provider: ^6.1.2
+
+  # ── Persistent settings ───────────────────────────────────────────────────────
+  shared_preferences: ^2.3.4
+
+  # ── WAV file writing ──────────────────────────────────────────────────────────
+  # (handled in pure Dart — no extra package needed)
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - 'assets/models/marian-encoder.onnx'
+    - 'assets/models/marian-decoder.onnx'
+    - 'assets/models/marian-tokenizer.json'
+    - 'assets/models/whisper/whisper-encoder.onnx'
+    - 'assets/models/whisper/whisper-decoder.onnx'
+    - 'assets/models/whisper/whisper-vocab.json'
+    - 'assets/models/stt/stt-config.json'
+    - 'assets/models/stt/stt-encoder.onnx'
+    - 'assets/models/stt/stt-decoder.onnx'
+    - 'assets/models/stt/stt-vocab.json'
